@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strafe Test</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:wght@100;300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #00f0ff;
+            --secondary: #7b2fff;
+            --accent: #ff2d95;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff3355;
+            --bg-dark: #05050f;
+            --bg-card: rgba(15, 15, 30, 0.85);
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.06);
+        }
+        body { background: var(--bg-dark); color: #fff; font-family: 'Rajdhani', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: none; }
+        .aurora { position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 20% 50%, rgba(0,240,255,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(123,47,255,0.08) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(255,45,149,0.06) 0%, transparent 50%); animation: aurora 20s ease-in-out infinite; pointer-events: none; }
+        @keyframes aurora { 0%,100%{transform:translate(0,0) rotate(0deg)} 25%{transform:translate(2%,-2%) rotate(1deg)} 50%{transform:translate(-1%,3%) rotate(-1deg)} 75%{transform:translate(3%,1%) rotate(0.5deg)} }
+        .particles { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:hidden; }
+        .particle { position:absolute; width:2px; height:2px; background:var(--primary); border-radius:50%; opacity:0; animation:float linear infinite; }
+        @keyframes float { 0%{opacity:0;transform:translateY(100vh) scale(0)} 10%{opacity:0.6} 90%{opacity:0.6} 100%{opacity:0;transform:translateY(-10vh) scale(1)} }
+        .container { position:relative; z-index:1; width:580px; padding:35px 40px; background:var(--bg-card); border:1px solid var(--border); border-radius:24px; backdrop-filter:blur(30px); box-shadow:0 80px 100px -20px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset; }
+        .container::before { content:''; position:absolute; top:0; left:30px; right:30px; height:1px; background:linear-gradient(90deg,transparent,var(--primary),transparent); opacity:0.4; }
+        .header { text-align:center; margin-bottom:25px; }
+        .title { font-family:'Exo 2',sans-serif; font-size:2.8rem; font-weight:900; letter-spacing:12px; background:linear-gradient(135deg,var(--primary),var(--secondary),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 30px rgba(0,240,255,0.3)); }
+        .tagline { font-size:0.75rem; color:rgba(255,255,255,0.25); letter-spacing:8px; text-transform:uppercase; margin-top:2px; }
+        .stats-row { display:flex; gap:12px; margin-bottom:20px; }
+        .stat-card { flex:1; padding:18px 16px; background:var(--glass); border:1px solid var(--border); border-radius:16px; text-align:center; position:relative; overflow:hidden; }
+        .stat-card::after { content:''; position:absolute; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg,rgba(0,240,255,0.03),transparent); pointer-events:none; }
+        .stat-label { font-size:0.65rem; color:rgba(255,255,255,0.3); letter-spacing:3px; text-transform:uppercase; margin-bottom:6px; }
+        .stat-number { font-family:'Exo 2',sans-serif; font-size:2.2rem; font-weight:700; color:var(--primary); line-height:1; filter:drop-shadow(0 0 10px rgba(0,240,255,0.3)); }
+        .stat-number.score-num { color:var(--warning); filter:drop-shadow(0 0 10px rgba(255,170,0,0.3)); }
+        .stat-number.time-num { color:var(--secondary); filter:drop-shadow(0 0 10px rgba(123,47,255,0.3)); }
+        .stat-number.time-num.danger { color:var(--danger); filter:drop-shadow(0 0 15px rgba(255,51,85,0.5)); animation:dangerPulse 0.6s infinite; }
+        @keyframes dangerPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.05)} }
+        .timer-bar-wrap { height:4px; background:rgba(255,255,255,0.04); border-radius:2px; margin-bottom:20px; overflow:hidden; }
+        .timer-bar { height:100%; width:100%; background:linear-gradient(90deg,var(--accent),var(--secondary),var(--primary)); border-radius:2px; transition:width 1s linear; box-shadow:0 0 15px rgba(0,240,255,0.4); }
+        .time-selector { display:flex; gap:6px; justify-content:center; margin-bottom:18px; }
+        .time-opt { padding:8px 18px; font-family:'Exo 2',sans-serif; font-size:0.8rem; font-weight:600; background:transparent; color:rgba(255,255,255,0.25); border:1px solid rgba(255,255,255,0.08); border-radius:8px; cursor:none; transition:all 0.25s; letter-spacing:1px; }
+        .time-opt:hover { color:var(--primary); border-color:rgba(0,240,255,0.3); }
+        .time-opt.active { color:var(--primary); border-color:var(--primary); background:rgba(0,240,255,0.08); box-shadow:0 0 20px rgba(0,240,255,0.1), inset 0 0 20px rgba(0,240,255,0.03); }
+        .play-btn { display:block; width:100%; padding:14px; font-family:'Exo 2',sans-serif; font-size:1rem; font-weight:700; letter-spacing:6px; text-transform:uppercase; background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#000; border:none; border-radius:12px; cursor:none; transition:all 0.3s; margin-bottom:22px; position:relative; overflow:hidden; }
+        .play-btn::after { content:''; position:absolute; top:-50%; left:-60%; width:200%; height:200%; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent); transform:rotate(25deg); transition:left 0.6s; }
+        .play-btn:hover::after { left:120%; }
+        .play-btn:hover { transform:translateY(-2px); box-shadow:0 10px 40px rgba(0,240,255,0.3); }
+        .play-btn:disabled { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.15); cursor:none; transform:none; box-shadow:none; }
+        .input-zone { display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:18px; }
+        .shift-key { width:200px; height:44px; display:flex; align-items:center; justify-content:center; font-family:'Exo 2',sans-serif; font-size:0.85rem; font-weight:700; letter-spacing:4px; color:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.06); border-radius:10px; background:var(--glass); transition:all 0.2s; }
+        .shift-key.on { color:var(--accent); border-color:var(--accent); background:rgba(255,45,149,0.08); box-shadow:0 0 30px rgba(255,45,149,0.2), inset 0 0 20px rgba(255,45,149,0.05); }
+        .wasd-grid { display:grid; grid-template-columns:repeat(3,56px); grid-template-rows:repeat(2,56px); gap:6px; justify-content:center; }
+        .wk { display:flex; align-items:center; justify-content:center; font-family:'Exo 2',sans-serif; font-size:1.1rem; font-weight:700; color:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.06); border-radius:10px; background:var(--glass); transition:all 0.12s; }
+        .wk.w { grid-column:2; } .wk.a { grid-column:1; grid-row:2; } .wk.s { grid-column:2; grid-row:2; } .wk.d { grid-column:3; grid-row:2; }
+        .wk.on { color:var(--primary); border-color:var(--primary); background:rgba(0,240,255,0.1); box-shadow:0 0 20px rgba(0,240,255,0.25); transform:scale(0.93); }
+        .seq-row { display:flex; justify-content:center; gap:8px; margin-bottom:16px; }
+        .seq-box { width:52px; height:52px; display:flex; align-items:center; justify-content:center; font-family:'Exo 2',sans-serif; font-size:1.3rem; font-weight:700; color:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.04); border-radius:12px; background:rgba(255,255,255,0.01); transition:all 0.2s; }
+        .seq-box.done { color:var(--success); border-color:var(--success); background:rgba(0,255,136,0.06); box-shadow:0 0 15px rgba(0,255,136,0.15); }
+        .seq-box.now { color:var(--warning); border-color:var(--warning); background:rgba(255,170,0,0.06); box-shadow:0 0 20px rgba(255,170,0,0.2); animation:nowPulse 1s infinite; }
+        @keyframes nowPulse { 0%,100%{box-shadow:0 0 20px rgba(255,170,0,0.2)} 50%{box-shadow:0 0 30px rgba(255,170,0,0.4)} }
+        .status-bar { padding:14px 20px; text-align:center; font-family:'Exo 2',sans-serif; font-size:0.9rem; font-weight:600; letter-spacing:3px; color:rgba(255,255,255,0.2); border:1px solid var(--border); border-radius:12px; background:var(--glass); min-height:48px; display:flex; align-items:center; justify-content:center; transition:all 0.3s; }
+        .status-bar.glow-green { color:var(--success); border-color:rgba(0,255,136,0.3); background:rgba(0,255,136,0.05); box-shadow:0 0 25px rgba(0,255,136,0.1); }
+        .status-bar.glow-red { color:var(--danger); border-color:rgba(255,51,85,0.3); background:rgba(255,51,85,0.05); box-shadow:0 0 25px rgba(255,51,85,0.1); }
+        .status-bar.glow-gold { color:var(--warning); border-color:rgba(255,170,0,0.3); background:rgba(255,170,0,0.05); box-shadow:0 0 30px rgba(255,170,0,0.15); }
+        .footer { text-align:center; margin-top:18px; font-size:0.65rem; color:rgba(255,255,255,0.15); letter-spacing:2px; text-transform:uppercase; line-height:2; }
+        .footer b { color:var(--primary); font-weight:600; }
+        .cursor-glow { position:fixed; width:500px; height:500px; border-radius:50%; pointer-events:none; z-index:0; transform:translate(-50%,-50%); background:radial-gradient(circle,rgba(0,240,255,0.08) 0%,rgba(123,47,255,0.04) 30%,transparent 70%); }
+        .cursor-ring { position:fixed; width:36px; height:36px; border:2px solid rgba(0,240,255,0.5); border-radius:50%; pointer-events:none; z-index:10000; transform:translate(-50%,-50%); transition:width 0.15s,height 0.15s,border-color 0.3s; mix-blend-mode:screen; }
+        .cursor-dot { position:fixed; width:6px; height:6px; background:var(--primary); border-radius:50%; pointer-events:none; z-index:10000; transform:translate(-50%,-50%); box-shadow:0 0 10px var(--primary),0 0 20px var(--primary); }
+        .cursor-trail { position:fixed; pointer-events:none; border-radius:50%; z-index:0; transform:translate(-50%,-50%); animation:trailFade 0.8s ease-out forwards; }
+        @keyframes trailFade { 0%{opacity:0.7;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(0.1)} }
+        .mouse-ripple { position:fixed; pointer-events:none; border-radius:50%; border:1px solid rgba(0,240,255,0.4); z-index:0; transform:translate(-50%,-50%); animation:rippleOut 0.8s ease-out forwards; }
+        @keyframes rippleOut { 0%{width:0;height:0;opacity:0.6} 100%{width:120px;height:120px;opacity:0} }
+        .magnetic-zone { position:fixed; pointer-events:none; z-index:0; width:80px; height:80px; border-radius:50%; transform:translate(-50%,-50%); border:1px solid rgba(0,240,255,0.1); animation:magPulse 2s infinite; }
+        @keyframes magPulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.3} 50%{transform:translate(-50%,-50%) scale(1.15);opacity:0.1} }
+        .spark { position:fixed; pointer-events:none; z-index:1; width:3px; height:3px; border-radius:50%; transform:translate(-50%,-50%); animation:sparkFly 0.6s ease-out forwards; }
+        @keyframes sparkFly { 0%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(var(--sx),var(--sy)) scale(0)} }
+        .grid-overlay { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; background-image:linear-gradient(rgba(0,240,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,0.015) 1px,transparent 1px); background-size:60px 60px; transition:background-position 0.1s; }
+
+        .auth-area { position:fixed; top:20px; right:25px; z-index:100; display:flex; align-items:center; gap:12px; }
+        .auth-btn { padding:8px 20px; font-family:'Exo 2',sans-serif; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; background:var(--glass); color:rgba(255,255,255,0.4); border:1px solid var(--border); border-radius:8px; cursor:none; transition:all 0.25s; }
+        .auth-btn:hover { color:var(--primary); border-color:rgba(0,240,255,0.3); background:rgba(0,240,255,0.05); }
+        .user-badge { display:none; align-items:center; gap:10px; padding:6px 16px 6px 8px; background:var(--glass); border:1px solid var(--border); border-radius:10px; }
+        .user-badge.show { display:flex; }
+        .user-avatar { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,var(--primary),var(--secondary)); display:flex; align-items:center; justify-content:center; font-family:'Exo 2',sans-serif; font-size:0.85rem; font-weight:700; color:#000; }
+        .user-name { font-family:'Exo 2',sans-serif; font-size:0.8rem; font-weight:600; color:rgba(255,255,255,0.6); letter-spacing:1px; }
+        .logout-btn { background:none; border:none; color:rgba(255,255,255,0.2); font-size:0.7rem; cursor:none; padding:4px; transition:color 0.2s; }
+        .logout-btn:hover { color:var(--danger); }
+
+        .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(5px); }
+        .modal-overlay.open { display:flex; }
+        .modal { width:380px; padding:35px 30px; background:var(--bg-card); border:1px solid var(--border); border-radius:20px; backdrop-filter:blur(30px); position:relative; box-shadow:0 40px 80px rgba(0,0,0,0.5); }
+        .modal::before { content:''; position:absolute; top:0; left:20px; right:20px; height:1px; background:linear-gradient(90deg,transparent,var(--primary),transparent); opacity:0.5; }
+        .modal-title { font-family:'Exo 2',sans-serif; font-size:1.5rem; font-weight:700; text-align:center; letter-spacing:4px; margin-bottom:25px; color:var(--primary); }
+        .modal-input { width:100%; padding:12px 16px; font-family:'Rajdhani',sans-serif; font-size:0.95rem; color:#fff; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; margin-bottom:12px; outline:none; transition:all 0.25s; letter-spacing:1px; cursor:none; }
+        .modal-input:focus { border-color:var(--primary); box-shadow:0 0 15px rgba(0,240,255,0.1); }
+        .modal-input::placeholder { color:rgba(255,255,255,0.2); }
+        .modal-submit { width:100%; padding:12px; font-family:'Exo 2',sans-serif; font-size:0.85rem; font-weight:700; letter-spacing:4px; text-transform:uppercase; background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#000; border:none; border-radius:10px; cursor:none; transition:all 0.3s; margin-top:5px; }
+        .modal-submit:hover { box-shadow:0 8px 30px rgba(0,240,255,0.3); transform:translateY(-1px); }
+        .modal-switch { text-align:center; margin-top:16px; font-size:0.75rem; color:rgba(255,255,255,0.25); }
+        .modal-switch a { color:var(--primary); text-decoration:none; cursor:none; }
+        .modal-close { position:absolute; top:14px; right:16px; background:none; border:none; color:rgba(255,255,255,0.2); font-size:1.3rem; cursor:none; transition:color 0.2s; z-index:10; }
+        .modal-close:hover { color:var(--danger); }
+        .modal-error { color:var(--danger); font-size:0.75rem; text-align:center; margin-top:8px; min-height:18px; }
+
+        .verify-code-display { text-align:center; margin:15px 0; padding:15px; background:rgba(0,255,136,0.05); border:1px dashed rgba(0,255,136,0.3); border-radius:12px; }
+        .verify-code-display .label { font-size:0.8rem; color:var(--success); letter-spacing:1px; }
+        .verify-code-display .email-sent { font-size:0.7rem; color:rgba(255,255,255,0.4); margin-top:6px; }
+
+        .verify-input-group { display:flex; gap:8px; justify-content:center; margin:15px 0; }
+        .verify-digit { width:48px; height:56px; text-align:center; font-family:'Exo 2',sans-serif; font-size:1.5rem; font-weight:700; color:#fff; background:rgba(255,255,255,0.03); border:2px solid rgba(255,255,255,0.1); border-radius:10px; outline:none; transition:all 0.2s; cursor:none; }
+        .verify-digit:focus { border-color:var(--primary); box-shadow:0 0 15px rgba(0,240,255,0.2); background:rgba(0,240,255,0.03); }
+        .verify-digit.filled { border-color:var(--success); background:rgba(0,255,136,0.05); }
+
+        .leaderboard { position:fixed; top:70px; right:25px; width:260px; z-index:50; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:18px 16px; backdrop-filter:blur(20px); box-shadow:0 20px 60px rgba(0,0,0,0.4); max-height:calc(100vh - 100px); overflow:hidden; display:flex; flex-direction:column; }
+        .lb-title { font-family:'Exo 2',sans-serif; font-size:0.75rem; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--warning); text-align:center; margin-bottom:10px; }
+        .lb-tabs { display:flex; gap:3px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .lb-tab { flex:1; padding:5px 0; font-family:'Exo 2',sans-serif; font-size:0.6rem; font-weight:600; text-align:center; letter-spacing:1px; background:transparent; color:rgba(255,255,255,0.2); border:1px solid transparent; border-radius:6px; cursor:none; transition:all 0.2s; }
+        .lb-tab:hover { color:rgba(255,255,255,0.4); }
+        .lb-tab.active { color:var(--primary); border-color:rgba(0,240,255,0.3); background:rgba(0,240,255,0.06); }
+        .lb-list-wrap { flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.05) transparent; }
+        .lb-list-wrap::-webkit-scrollbar { width:4px; }
+        .lb-list-wrap::-webkit-scrollbar-track { background:transparent; }
+        .lb-list-wrap::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:2px; }
+        .lb-list { list-style:none; }
+        .lb-list[data-tab] { display:none; }
+        .lb-list[data-tab].visible { display:block; }
+        .lb-item { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:8px; margin-bottom:2px; transition:background 0.2s; }
+        .lb-item:hover { background:rgba(255,255,255,0.02); }
+        .lb-rank { font-family:'Exo 2',sans-serif; font-size:0.65rem; font-weight:700; width:20px; height:20px; display:flex; align-items:center; justify-content:center; border-radius:5px; background:rgba(255,255,255,0.03); color:rgba(255,255,255,0.25); flex-shrink:0; }
+        .lb-item:nth-child(1) .lb-rank { background:rgba(255,215,0,0.15); color:#ffd700; }
+        .lb-item:nth-child(2) .lb-rank { background:rgba(192,192,192,0.12); color:#c0c0c0; }
+        .lb-item:nth-child(3) .lb-rank { background:rgba(205,127,50,0.12); color:#cd7f32; }
+        .lb-user { flex:1; font-family:'Exo 2',sans-serif; font-size:0.7rem; font-weight:500; color:rgba(255,255,255,0.5); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; flex-direction:column; gap:2px; }
+        .lb-ip { font-size:0.55rem; color:rgba(255,255,255,0.25); font-weight:300; letter-spacing:0.5px; }
+        .lb-score { font-family:'Exo 2',sans-serif; font-size:0.75rem; font-weight:700; color:var(--success); }
+        .lb-empty { text-align:center; color:rgba(255,255,255,0.15); font-size:0.75rem; padding:15px 0; }
+        .lb-you { background:rgba(0,240,255,0.04) !important; border:1px solid rgba(0,240,255,0.08); }
+        .lb-you .lb-user { color:var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="aurora"></div>
+    <div class="grid-overlay" id="gridOverlay"></div>
+    <div class="particles" id="particles"></div>
+    <div class="cursor-glow" id="cursorGlow"></div>
+    <div class="cursor-ring" id="cursorRing"></div>
+    <div class="cursor-dot" id="cursorDot"></div>
+    <div class="magnetic-zone" id="magZone"></div>
+
+    <div class="auth-area">
+        <div class="user-badge" id="userBadge">
+            <div class="user-avatar" id="userAvatar">?</div>
+            <span class="user-name" id="userName">-</span>
+            <button class="logout-btn" id="logoutBtn" title="Cikis">X</button>
+        </div>
+        <button class="auth-btn" id="loginBtn">GIRIS</button>
+        <button class="auth-btn" id="registerBtn">KAYIT</button>
+    </div>
+
+    <div class="leaderboard" id="leaderboard">
+        <div class="lb-title">EN IYI 10</div>
+        <div class="lb-tabs" id="lbTabs">
+            <button class="lb-tab active" data-dur="15">15s</button>
+            <button class="lb-tab" data-dur="30">30s</button>
+            <button class="lb-tab" data-dur="60">1m</button>
+            <button class="lb-tab" data-dur="120">2m</button>
+            <button class="lb-tab" data-dur="180">3m</button>
+        </div>
+        <div class="lb-list-wrap">
+            <ul class="lb-list visible" data-tab="15" id="lb15"></ul>
+            <ul class="lb-list" data-tab="30" id="lb30"></ul>
+            <ul class="lb-list" data-tab="60" id="lb60"></ul>
+            <ul class="lb-list" data-tab="120" id="lb120"></ul>
+            <ul class="lb-list" data-tab="180" id="lb180"></ul>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <button class="modal-close" id="modalClose">X</button>
+            <div class="modal-title" id="modalTitle">GIRIS</div>
+            <div id="modalBody">
+                <input class="modal-input" id="modalUser" type="text" placeholder="Kullanici adi" maxlength="20" autocomplete="off">
+                <input class="modal-input" id="modalPass" type="password" placeholder="Sifre" maxlength="30">
+            </div>
+            <div id="modalVerifyBody" style="display:none">
+                <input class="modal-input" id="modalRegUser" type="text" placeholder="Kullanici adi" maxlength="20" autocomplete="off">
+                <input class="modal-input" id="modalEmail" type="email" placeholder="E-posta adresi" maxlength="50" autocomplete="off">
+                <input class="modal-input" id="modalPass2" type="password" placeholder="Sifre" maxlength="30">
+                <div class="verify-code-display" id="verifyCodeBox" style="display:none">
+                    <div class="label">Onay kodu e-postana gonderildi</div>
+                    <div class="email-sent" id="verifyEmailLabel"></div>
+                </div>
+                <div class="verify-input-group" id="verifyInputGroup" style="display:none">
+                    <input class="verify-digit" id="vd1" maxlength="1" inputmode="numeric">
+                    <input class="verify-digit" id="vd2" maxlength="1" inputmode="numeric">
+                    <input class="verify-digit" id="vd3" maxlength="1" inputmode="numeric">
+                    <input class="verify-digit" id="vd4" maxlength="1" inputmode="numeric">
+                    <input class="verify-digit" id="vd5" maxlength="1" inputmode="numeric">
+                    <input class="verify-digit" id="vd6" maxlength="1" inputmode="numeric">
+                </div>
+            </div>
+            <div class="modal-error" id="modalError"></div>
+            <button class="modal-submit" id="modalSubmit">DEVAM</button>
+            <div class="modal-switch" id="modalSwitch">
+                Hesabin yok mu? <a href="#" id="switchLink">Kayit Ol</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="title">STRAFE</div>
+            <div class="tagline">movement speed test</div>
+        </div>
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Sure</div>
+                <div class="stat-number time-num" id="countdown">0:30</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Puan</div>
+                <div class="stat-number score-num" id="score">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Hiz</div>
+                <div class="stat-number" id="cps">0</div>
+            </div>
+        </div>
+        <div class="timer-bar-wrap"><div class="timer-bar" id="timerbar"></div></div>
+        <div class="time-selector">
+            <button class="time-opt" data-t="15">15s</button>
+            <button class="time-opt active" data-t="30">30s</button>
+            <button class="time-opt" data-t="60">1m</button>
+            <button class="time-opt" data-t="120">2m</button>
+            <button class="time-opt" data-t="180">3m</button>
+        </div>
+        <button class="play-btn" id="playBtn">BASLA</button>
+        <div class="input-zone">
+            <div class="shift-key" id="shiftKey">SHIFT</div>
+            <div class="wasd-grid">
+                <div class="wk w" id="kw">W</div>
+                <div class="wk a" id="ka">A</div>
+                <div class="wk s" id="ks">S</div>
+                <div class="wk d" id="kd">D</div>
+            </div>
+        </div>
+        <div class="seq-row">
+            <div class="seq-box" data-k="W">W</div>
+            <div class="seq-box" data-k="A">A</div>
+            <div class="seq-box" data-k="S">S</div>
+            <div class="seq-box" data-k="D">D</div>
+        </div>
+        <div class="status-bar" id="status">SURE SEC VE BASLA</div>
+        <div class="footer"><b>SHIFT</b> tut > <b>W-A-S-D</b> sirali bas > her tamam = <b>+1</b></div>
+    </div>
+
+    <script>
+        for (let i = 0; i < 40; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.animationDuration = (8 + Math.random() * 12) + 's';
+            p.style.animationDelay = Math.random() * 10 + 's';
+            p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+            document.getElementById('particles').appendChild(p);
+        }
+
+        const $ = id => document.getElementById(id);
+        const scoreEl = $('score'), cpsEl = $('cps'), countdownEl = $('countdown'), timerBar = $('timerbar');
+        const playBtn = $('playBtn'), shiftKey = $('shiftKey'), status = $('status');
+        const seqBoxes = document.querySelectorAll('.seq-box'), timeOpts = document.querySelectorAll('.time-opt');
+        const wk = { w: $('kw'), a: $('ka'), s: $('ks'), d: $('kd') };
+        let score = 0, shiftOn = false, seq = '', running = false;
+        let duration = 30, remaining = 30, interval = null, startTime = 0;
+        const WASD = 'WASD';
+
+        const USERS_KEY = 'strafe_users', SCORES_KEY = 'strafe_scores', SESSION_KEY = 'strafe_session';
+        const DURATIONS = ['15', '30', '60', '120', '180'];
+
+        async function getUsers() {
+            try {
+                const snap = await db.collection('users').get();
+                const users = {};
+                snap.forEach(doc => { users[doc.id] = doc.data(); });
+                return users;
+            } catch(e) { return {}; }
+        }
+        async function fetchIP() {
+            try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                const data = await res.json();
+                return data.ip || 'Bilinmiyor';
+            } catch(e) {
+                try {
+                    const res2 = await fetch('https://api.my-ip.io/v2/ip.json');
+                    const data2 = await res2.json();
+                    return data2.ip || 'Bilinmiyor';
+                } catch(e2) { return 'Bilinmiyor'; }
+            }
+        }
+
+        async function saveUser(username, data) {
+            await db.collection('users').doc(username).set(data);
+        }
+        async function getUser(username) {
+            const doc = await db.collection('users').doc(username).get();
+            return doc.exists ? doc.data() : null;
+        }
+        async function isEmailTaken(email) {
+            const snap = await db.collection('users').where('email', '==', email).get();
+            return !snap.empty;
+        }
+        async function isUsernameTaken(username) {
+            const doc = await db.collection('users').doc(username).get();
+            return doc.exists;
+        }
+        async function getScores() {
+            try {
+                const snap = await db.collection('scores').orderBy('score', 'desc').limit(200).get();
+                const scores = [];
+                snap.forEach(doc => scores.push(doc.data()));
+                return scores;
+            } catch(e) { return []; }
+        }
+        async function saveScore(user, score, dur) {
+            const ip = await fetchIP();
+            await db.collection('scores').add({ user, score, duration: dur, date: Date.now(), ip: ip });
+        }
+        function getSession() { return localStorage.getItem(SESSION_KEY); }
+        function setSession(u) { localStorage.setItem(SESSION_KEY, u); }
+        function clearSession() { localStorage.removeItem(SESSION_KEY); }
+
+        const loginBtn = $('loginBtn'), registerBtn = $('registerBtn'), logoutBtn = $('logoutBtn');
+        const userBadge = $('userBadge'), userAvatar = $('userAvatar'), userName = $('userName');
+        const modalOverlay = $('modalOverlay'), modalClose = $('modalClose');
+        const modalTitle = $('modalTitle'), modalBody = $('modalBody'), modalVerifyBody = $('modalVerifyBody');
+        const modalUser = $('modalUser'), modalPass = $('modalPass');
+        const modalEmail = $('modalEmail'), modalPass2 = $('modalPass2'), modalRegUser = $('modalRegUser');
+        const modalSubmit = $('modalSubmit'), modalSwitch = $('modalSwitch'), modalError = $('modalError');
+        const verifyCodeBox = $('verifyCodeBox'), verifyCodeText = $('verifyCodeText'), verifyEmailLabel = $('verifyEmailLabel');
+        const verifyInputGroup = $('verifyInputGroup');
+        const verifyDigits = [$('vd1'), $('vd2'), $('vd3'), $('vd4'), $('vd5'), $('vd6')];
+        const lbTabs = $('lbTabs');
+        const lbLists = {};
+        DURATIONS.forEach(d => lbLists[d] = $('lb' + d));
+
+        let authMode = 'login', activeTab = '15';
+        let pendingCode = '', pendingUser = '', pendingEmail = '', pendingPass = '';
+        let regStep = 1;
+
+        function openModal(mode) {
+            authMode = mode;
+            regStep = 1;
+            modalOverlay.classList.add('open');
+            modalError.textContent = '';
+            verifyCodeBox.style.display = 'none';
+            verifyInputGroup.style.display = 'none';
+
+            if (mode === 'login') {
+                modalTitle.textContent = 'GIRIS';
+                modalBody.style.display = '';
+                modalVerifyBody.style.display = 'none';
+                modalSubmit.textContent = 'GIRIS YAP';
+                modalSwitch.innerHTML = 'Hesabin yok mu? <a href="#" id="switchLink">Kayit Ol</a>';
+                modalUser.value = '';
+                modalPass.value = '';
+                setTimeout(() => modalUser.focus(), 100);
+            } else {
+                modalTitle.textContent = 'KAYIT';
+                modalBody.style.display = 'none';
+                modalVerifyBody.style.display = '';
+                modalSubmit.textContent = 'KAYIT OL';
+                modalSwitch.innerHTML = 'Hesabin var mi? <a href="#" id="switchLink">Giris Yap</a>';
+                modalUser.value = '';
+                modalPass2.value = '';
+                modalEmail.value = '';
+                modalRegUser.value = '';
+                setTimeout(() => modalRegUser.focus(), 100);
+            }
+
+            document.getElementById('switchLink').onclick = e => {
+                e.preventDefault();
+                openModal(mode === 'login' ? 'register' : 'login');
+            };
+        }
+
+        function closeModal() { modalOverlay.classList.remove('open'); }
+
+        loginBtn.onclick = () => openModal('login');
+        registerBtn.onclick = () => openModal('register');
+        modalClose.onclick = closeModal;
+        modalOverlay.onclick = e => { if (e.target === modalOverlay) closeModal(); };
+
+        function generateCode() {
+            let code = '';
+            for (let i = 0; i < 6; i++) code += Math.floor(Math.random() * 10);
+            return code;
+        }
+
+        emailjs.init('YOUR_EMAILJS_PUBLIC_KEY');
+
+        const firebaseConfig = {
+            apiKey: "YOUR_FIREBASE_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        function sendVerificationCode(email, code) {
+            emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
+                to_email: email,
+                code: code,
+                user: email
+            }).then(() => {
+                modalError.textContent = '';
+            }).catch((err) => {
+                console.log('EmailJS hatasi:', err);
+                modalError.textContent = 'Mail gonderilemedi, tekrar deneyin';
+                modalError.style.color = 'var(--danger)';
+            });
+        }
+
+        modalSubmit.onclick = async () => {
+            modalError.textContent = '';
+
+            if (authMode === 'login') {
+                const user = modalUser.value.trim();
+                const pass = modalPass.value;
+                if (!user || !pass) { modalError.textContent = 'Alanlari doldur'; return; }
+                const userData = await getUser(user);
+                if (!userData) { modalError.textContent = 'Kullanici bulunamadi'; return; }
+                if (userData.password !== pass) { modalError.textContent = 'Sifre hatali'; return; }
+                if (!userData.verified) { modalError.textContent = 'Hesap onaylanmamis'; return; }
+                setSession(user);
+                updateAuthUI();
+                closeModal();
+                return;
+            }
+
+            if (regStep === 1) {
+                const username = modalRegUser.value.trim();
+                const email = modalEmail.value.trim();
+                const pass = modalPass2.value;
+                if (!username || !email || !pass) { modalError.textContent = 'Alanlari doldur'; return; }
+                if (username.length < 2) { modalError.textContent = 'Kullanici adi en az 2 karakter'; return; }
+                if (/[ ]/.test(username)) { modalError.textContent = 'Kullanici adinda bosluk olamaz'; return; }
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { modalError.textContent = 'Gecerli e-posta girin'; return; }
+                if (pass.length < 4) { modalError.textContent = 'Sifre en az 4 karakter'; return; }
+
+                modalSubmit.textContent = 'KONTROL...';
+                modalSubmit.disabled = true;
+
+                const userExists = await isUsernameTaken(username);
+                if (userExists) { modalError.textContent = 'Bu kullanici adi alinmis'; modalSubmit.textContent = 'ONAYLA'; modalSubmit.disabled = false; return; }
+                const emailExists = await isEmailTaken(email);
+                if (emailExists) { modalError.textContent = 'Bu e-posta zaten kayitli'; modalSubmit.textContent = 'ONAYLA'; modalSubmit.disabled = false; return; }
+
+                pendingUser = username;
+                pendingEmail = email;
+                pendingPass = pass;
+                pendingCode = generateCode();
+                pendingUser = username;
+
+                verifyCodeBox.style.display = '';
+                verifyEmailLabel.textContent = email;
+                verifyInputGroup.style.display = '';
+                modalSubmit.textContent = 'ONAYLA';
+                modalSubmit.disabled = false;
+
+                verifyDigits.forEach(d => { d.value = ''; d.classList.remove('filled'); });
+                setTimeout(() => verifyDigits[0].focus(), 100);
+                regStep = 2;
+
+                sendVerificationCode(email, pendingCode);
+                modalError.textContent = '';
+                console.log('DOGRULAMA KODU:', pendingCode);
+                return;
+            }
+
+            if (regStep === 2) {
+                const entered = verifyDigits.map(d => d.value).join('');
+                if (entered.length < 6) { modalError.textContent = '6 haneli kodu girin'; return; }
+                if (entered !== pendingCode) { modalError.textContent = 'Hatali onay kodu! Tekrar deneyin'; return; }
+
+                modalSubmit.textContent = 'KAYIT...';
+                modalSubmit.disabled = true;
+
+                const ip = await fetchIP();
+                await saveUser(pendingUser, { password: pendingPass, email: pendingEmail, verified: true, created: Date.now(), ip: ip });
+
+                modalTitle.textContent = 'KAYIT BASARILI!';
+                verifyCodeBox.style.display = 'none';
+                verifyInputGroup.style.display = 'none';
+                modalVerifyBody.innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:2rem;margin-bottom:10px">HESAP OLUSTURULDU</div><div style="font-family:Exo 2,sans-serif;font-size:1.8rem;font-weight:900;color:var(--primary);letter-spacing:3px">' + pendingUser + '</div><div style="font-size:0.8rem;color:rgba(255,255,255,0.4);margin-top:10px">E-posta: ' + pendingEmail + '</div></div>';
+                modalSubmit.textContent = 'GIRIS YAP';
+                modalSubmit.disabled = false;
+                regStep = 3;
+                return;
+            }
+
+            if (regStep === 3) {
+                setSession(pendingUser);
+                updateAuthUI();
+                closeModal();
+                regStep = 1;
+                return;
+            }
+        };
+
+        verifyDigits.forEach((digit, idx) => {
+            digit.addEventListener('input', () => {
+                if (digit.value && idx < 5) verifyDigits[idx + 1].focus();
+                digit.classList.toggle('filled', digit.value !== '');
+            });
+            digit.addEventListener('keydown', e => {
+                if (e.key === 'Backspace' && !digit.value && idx > 0) verifyDigits[idx - 1].focus();
+                if (e.key === 'Enter') modalSubmit.click();
+            });
+        });
+
+        modalUser.addEventListener('keydown', e => { if (e.key === 'Enter') modalPass.focus(); });
+        modalPass.addEventListener('keydown', e => { if (e.key === 'Enter') modalSubmit.click(); });
+        modalRegUser.addEventListener('keydown', e => { if (e.key === 'Enter') modalEmail.focus(); });
+        modalEmail.addEventListener('keydown', e => { if (e.key === 'Enter') modalPass2.focus(); });
+        modalPass2.addEventListener('keydown', e => { if (e.key === 'Enter') modalSubmit.click(); });
+
+        logoutBtn.onclick = () => { clearSession(); updateAuthUI(); };
+
+        function updateAuthUI() {
+            const session = getSession();
+            if (session) {
+                userBadge.classList.add('show');
+                loginBtn.style.display = 'none';
+                registerBtn.style.display = 'none';
+                userAvatar.textContent = session.charAt(0).toUpperCase();
+                userName.textContent = session;
+            } else {
+                userBadge.classList.remove('show');
+                loginBtn.style.display = '';
+                registerBtn.style.display = '';
+            }
+            renderAllLeaderboards();
+        }
+
+        async function getTopForDuration(dur) {
+            const allScores = await getScores();
+            const filtered = allScores.filter(s => s.duration === +dur);
+            const best = {};
+            filtered.forEach(s => { if (!best[s.user] || s.score > best[s.user].score) best[s.user] = { score: s.score, ip: s.ip || 'Yok' }; });
+            return Object.entries(best).map(([user, data]) => ({ user, score: data.score, ip: data.ip })).sort((a, b) => b.score - a.score).slice(0, 10);
+        }
+
+        async function renderAllLeaderboards() {
+            const session = getSession();
+            for (const dur of DURATIONS) {
+                const list = lbLists[dur];
+                const top = await getTopForDuration(dur);
+                list.innerHTML = '';
+                if (top.length === 0) { list.innerHTML = '<div class="lb-empty">Henuz skor yok</div>'; continue; }
+                top.forEach((entry, i) => {
+                    const li = document.createElement('li');
+                    li.className = 'lb-item' + (session === entry.user ? ' lb-you' : '');
+                    li.innerHTML = '<span class="lb-rank">' + (i + 1) + '</span><span class="lb-user">' + entry.user + '</span><span class="lb-score">' + entry.score + '</span>';
+                    list.appendChild(li);
+                });
+            }
+        }
+
+        lbTabs.addEventListener('click', e => {
+            const tab = e.target.closest('.lb-tab');
+            if (!tab) return;
+            activeTab = tab.dataset.dur;
+            lbTabs.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('.lb-list[data-tab]').forEach(l => l.classList.remove('visible'));
+            lbLists[activeTab].classList.add('visible');
+        });
+
+        renderAllLeaderboards();
+
+        timeOpts.forEach(b => b.onclick = () => {
+            if (running) return;
+            timeOpts.forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            duration = remaining = +b.dataset.t;
+            renderTime(); renderBar();
+        });
+
+        playBtn.onclick = start;
+
+        function start() {
+            if (running) return;
+            running = true;
+            score = 0; startTime = Date.now();
+            scoreEl.textContent = '0'; cpsEl.textContent = '0';
+            remaining = duration;
+            playBtn.disabled = true;
+            renderTime(); renderBar(); renderStatus();
+            interval = setInterval(() => { remaining--; renderTime(); renderBar(); if (remaining <= 0) finish(); }, 1000);
+        }
+
+        async function finish() {
+            running = false;
+            clearInterval(interval);
+            playBtn.disabled = false;
+            const cps = duration > 0 ? (score / (duration / 60)).toFixed(1) : '0.0';
+            status.textContent = 'BITTI - ' + score + ' PUAN - ' + cps + '/dk';
+            status.className = 'status-bar glow-gold';
+            timerBar.style.width = '0%';
+            if (score > 0) {
+                const session = getSession();
+                if (session) { await saveScore(session, score, duration); await renderAllLeaderboards(); }
+            }
+        }
+
+        function renderTime() {
+            const m = Math.floor(remaining / 60), s = remaining % 60;
+            countdownEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+            countdownEl.classList.toggle('danger', remaining <= 10 && running);
+        }
+
+        function renderBar() { timerBar.style.width = (remaining / duration * 100) + '%'; }
+
+        function renderStatus() {
+            if (!running) { status.textContent = 'SURE SEC VE BASLA'; status.className = 'status-bar'; return; }
+            if (!shiftOn) { status.textContent = 'SHIFT BASILI TUT'; status.className = 'status-bar'; return; }
+            if (seq === '') { status.textContent = 'W-A-S-D GIR'; status.className = 'status-bar'; return; }
+            status.textContent = seq; status.className = 'status-bar';
+        }
+
+        function highlightSeq() {
+            seqBoxes.forEach(b => b.classList.remove('done', 'now'));
+            if (!seq) return;
+            for (let i = 0; i < seq.length; i++) {
+                const el = document.querySelector('.seq-box[data-k="' + seq[i] + '"]');
+                if (el) el.classList.add(i === seq.length - 1 ? 'now' : 'done');
+            }
+        }
+
+        document.addEventListener('keydown', e => {
+            if (!running) return;
+            const k = e.key.toLowerCase();
+            if (k === 'shift') { shiftOn = true; shiftKey.classList.add('on'); seq = ''; renderStatus(); highlightSeq(); return; }
+            if (!shiftOn || !'wasd'.includes(k)) return;
+            e.preventDefault();
+            wk[k].classList.add('on');
+            seq += k.toUpperCase();
+            if (!WASD.startsWith(seq)) {
+                seq = ''; status.textContent = 'HATALI!'; status.className = 'status-bar glow-red';
+                setTimeout(() => { renderStatus(); }, 350); highlightSeq(); return;
+            }
+            highlightSeq();
+            if (seq === WASD) {
+                score++; scoreEl.textContent = score;
+                const elapsedMin = (Date.now() - startTime) / 60000;
+                if (elapsedMin > 0) cpsEl.textContent = (score / elapsedMin).toFixed(1);
+                status.textContent = '+1'; status.className = 'status-bar glow-green';
+                seq = ''; setTimeout(() => { renderStatus(); }, 200); highlightSeq();
+            }
+        });
+
+        document.addEventListener('keyup', e => {
+            if (!running) return;
+            const k = e.key.toLowerCase();
+            if (k === 'shift') { shiftOn = false; shiftKey.classList.remove('on'); seq = ''; renderStatus(); highlightSeq(); }
+            if (wk[k]) wk[k].classList.remove('on');
+        });
+
+        const cursorGlow = $('cursorGlow'), cursorRing = $('cursorRing'), cursorDot = $('cursorDot');
+        const magZone = $('magZone'), gridOverlay = $('gridOverlay');
+        let mx = 0, my = 0, ringX = 0, ringY = 0, glowX = 0, glowY = 0;
+        let trailTimer = 0, rippleTimer = 0;
+        const colors = ['#00f0ff', '#7b2fff', '#ff2d95', '#00ff88', '#ffaa00'];
+
+        document.addEventListener('mousemove', e => {
+            mx = e.clientX; my = e.clientY;
+            cursorDot.style.left = mx + 'px'; cursorDot.style.top = my + 'px';
+            gridOverlay.style.backgroundPosition = (mx * 0.02) + 'px ' + (my * 0.02) + 'px';
+            const now = Date.now();
+            if (now - trailTimer > 40) { trailTimer = now; spawnTrail(mx, my); }
+            if (now - rippleTimer > 800) { rippleTimer = now; spawnRipple(mx, my); }
+        });
+
+        document.addEventListener('mousedown', e => {
+            cursorRing.style.width = '28px'; cursorRing.style.height = '28px';
+            cursorRing.style.borderColor = '#ff2d95'; spawnBurst(e.clientX, e.clientY);
+        });
+        document.addEventListener('mouseup', () => {
+            cursorRing.style.width = '36px'; cursorRing.style.height = '36px';
+            cursorRing.style.borderColor = 'rgba(0,240,255,0.5)';
+        });
+
+        function animateCursor() {
+            ringX += (mx - ringX) * 0.12; ringY += (my - ringY) * 0.12;
+            glowX += (mx - glowX) * 0.06; glowY += (my - glowY) * 0.06;
+            cursorRing.style.left = ringX + 'px'; cursorRing.style.top = ringY + 'px';
+            cursorGlow.style.left = glowX + 'px'; cursorGlow.style.top = glowY + 'px';
+            magZone.style.left = mx + 'px'; magZone.style.top = my + 'px';
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor();
+
+        function spawnTrail(x, y) {
+            const el = document.createElement('div'); el.className = 'cursor-trail';
+            const size = 4 + Math.random() * 6;
+            const c = colors[Math.floor(Math.random() * colors.length)];
+            el.style.cssText = 'left:' + x + 'px;top:' + y + 'px;width:' + size + 'px;height:' + size + 'px;background:' + c + ';box-shadow:0 0 ' + (size * 2) + 'px ' + c + ';';
+            document.body.appendChild(el); setTimeout(() => el.remove(), 800);
+        }
+
+        function spawnRipple(x, y) {
+            const el = document.createElement('div'); el.className = 'mouse-ripple';
+            el.style.left = x + 'px'; el.style.top = y + 'px';
+            document.body.appendChild(el); setTimeout(() => el.remove(), 800);
+        }
+
+        function spawnBurst(x, y) {
+            for (let i = 0; i < 8; i++) {
+                const el = document.createElement('div'); el.className = 'spark';
+                const angle = (Math.PI * 2 / 8) * i, dist = 30 + Math.random() * 30;
+                const sx = Math.cos(angle) * dist, sy = Math.sin(angle) * dist;
+                const c = colors[Math.floor(Math.random() * colors.length)];
+                el.style.cssText = 'left:' + x + 'px;top:' + y + 'px;background:' + c + ';box-shadow:0 0 6px ' + c + ';--sx:' + sx + 'px;--sy:' + sy + 'px;';
+                document.body.appendChild(el); setTimeout(() => el.remove(), 600);
+            }
+        }
+
+        document.addEventListener('mouseleave', () => { cursorRing.style.opacity = '0'; cursorDot.style.opacity = '0'; cursorGlow.style.opacity = '0'; magZone.style.opacity = '0'; });
+        document.addEventListener('mouseenter', () => { cursorRing.style.opacity = '1'; cursorDot.style.opacity = '1'; cursorGlow.style.opacity = '1'; magZone.style.opacity = '1'; });
+    </script>
+</body>
+</html>
